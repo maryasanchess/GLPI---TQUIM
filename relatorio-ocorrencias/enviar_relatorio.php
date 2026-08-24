@@ -27,7 +27,10 @@ $destinatarios = [
     ['email' => 'marya.souza@tquim.com.br', 'name' => 'Marya Souza'],
 ];
 
+$config = Config::getConfigurationValues('core', ['admin_email', 'admin_email_name']);
+
 $mailer = new GLPIMailer();
+$mailer->setFrom($config['admin_email'], $config['admin_email_name'] ?? '');
 foreach ($destinatarios as $dest) {
     $mailer->addAddress($dest['email'], $dest['name']);
 }
