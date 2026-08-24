@@ -47,6 +47,7 @@ NATIVE_COLUMNS = [
     (3, "Prioridade", lambda v: PRIORIDADE.get(_as_int(v), v)),
     (12, "Status", lambda v: STATUS.get(_as_int(v), v)),
     (CAMPO_DATA_ABERTURA, "Data de abertura", None),
+    (119, "Fotos (Qtd. Anexos)", None),
 ]
 
 PLUGIN_COLUMNS = [
@@ -91,14 +92,15 @@ PLUGIN_COLUMNS = [
 
 ALL_COLUMNS = NATIVE_COLUMNS + PLUGIN_COLUMNS
 
-# Cores TQUIM (mesmas do e-mail de notificação)
-COR_CABECALHO = "0A67D8"
-COR_LINHA_PAR = "F3F5F8"
+# Cores do modelo de abertura de Ocorrência (mesmas do e-mail de notificação)
+COR_CABECALHO = "FFFF99"
+COR_TEXTO_CABECALHO = "333333"
+COR_LINHA_PAR = "FFF8D6"
 COR_BORDA = "D4D9E2"
 
 LARGURAS = {
     "ID": 8, "Título": 32, "Categoria": 22, "Prioridade": 12, "Status": 20,
-    "Data de abertura": 16,
+    "Data de abertura": 16, "Fotos (Qtd. Anexos)": 18,
 }
 
 
@@ -177,9 +179,9 @@ def agrupar_por_mes(linhas):
 
 def escrever_aba(ws, linhas):
     fonte_padrao = Font(name="Arial", size=10)
-    fonte_titulo = Font(name="Arial", size=14, bold=True, color="FFFFFF")
+    fonte_titulo = Font(name="Arial", size=14, bold=True, color=COR_TEXTO_CABECALHO)
     fonte_subtitulo = Font(name="Arial", size=9, italic=True, color="555555")
-    fonte_cabecalho = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    fonte_cabecalho = Font(name="Arial", size=10, bold=True, color=COR_TEXTO_CABECALHO)
     borda = Border(*(Side(style="thin", color=COR_BORDA),) * 4)
 
     n_cols = len(ALL_COLUMNS)
