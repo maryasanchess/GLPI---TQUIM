@@ -1,0 +1,5 @@
+{
+  "api_url": "https://SEU-SERVIDOR-GLPI/api.php/v1",
+  "app_token": "token do cliente de API (Configurar > Geral > API)",
+  "user_token": "token pessoal do usuário (Preferências > Chaves de API remota)"
+}

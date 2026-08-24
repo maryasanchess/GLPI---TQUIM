@@ -1,0 +1,42 @@
+ATRIBUIDOR DE ENTIDADE DOS USUÁRIOS NO GLPI
+============================================
+
+O QUE FAZ
+- Move o vínculo perfil+entidade dos usuários que hoje apontam para a
+  entidade de origem (padrão "TQUIM") para a entidade de destino (padrão
+  "TQUIM > TI"), mantendo o mesmo perfil e a mesma opção de recursividade
+  de cada usuário. Só o campo entidade do vínculo é alterado.
+- Não cria usuário, não cria perfil, não mexe em chamados nem em outras
+  configurações. Não move quem já não está na entidade de origem.
+- Não precisa de instalação nem de ambiente virtual: usa só a biblioteca
+  padrão do Python 3 (funciona com "python" ou "py -3" direto).
+
+ANTES DE USAR
+1. Copie config_exemplo.json para config.json.
+2. Preencha api_url, app_token e user_token (mesmos dados que você já usa
+   no GLPI para outras integrações).
+3. Confira "origem_entity_completename" e "destino_entity_completename":
+   por padrão estão "TQUIM" e "TQUIM > TI". Ajuste se o nome completo da
+   entidade no seu GLPI for diferente.
+4. Se algum usuário (ex.: você mesmo, como administrador) não deve ser
+   movido, acrescente o login dele na lista "excluir_logins".
+
+COMO USAR
+1. Simulação (não altera nada):
+   python atribuir_entidade_usuarios_glpi.py --limit 0
+   Revise a lista impressa: cada linha mostra o login e para onde ele iria.
+2. Depois de conferir a simulação, aplique de fato:
+   python atribuir_entidade_usuarios_glpi.py --limit 0 --executar
+   O programa pede para digitar exatamente APLICAR antes de alterar
+   qualquer coisa no GLPI.
+
+OBSERVAÇÕES
+- Use --limit 10 (ou outro número) para testar com poucos usuários antes
+  de aplicar em todos (--limit 0).
+- Se o vínculo de um usuário estiver marcado como "dinâmico" (is_dynamic),
+  o script avisa: esse tipo de vínculo costuma ser recriado automaticamente
+  por sincronização de diretório (LDAP) ou por regras de importação: se
+  isso estiver ativo no seu GLPI, a mudança pode ser desfeita na próxima
+  sincronização.
+- Falhas de atualização (se houver) ficam registradas em um CSV
+  atribuicao_entidade_usuarios_erros_<data>.csv, gerado na mesma pasta.

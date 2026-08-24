@@ -1,0 +1,11 @@
+{
+  "api_url": "https://SEU-SERVIDOR-GLPI/api.php/v1",
+  "app_token": "COLE_AQUI_O_APP_TOKEN",
+  "user_token": "COLE_AQUI_O_USER_TOKEN",
+  "profile_id": 0,
+  "interval_seconds": 0.15,
+  "scan_range": 5000,
+  "origem_entity_completename": "TQUIM",
+  "destino_entity_completename": "TQUIM > TI",
+  "excluir_logins": []
+}

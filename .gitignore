@@ -1,0 +1,5 @@
+config.json
+*.xlsx
+*.csv
+__pycache__/
+*.pyc
