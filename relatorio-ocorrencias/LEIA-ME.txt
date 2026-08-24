@@ -2,44 +2,69 @@ RELATÓRIO DE OCORRÊNCIAS EM EXCEL (GLPI)
 =========================================
 
 O QUE FAZ
-- Busca todos os chamados de uma entidade no GLPI (via API de busca) e gera
-  um arquivo .xlsx formatado, com os campos nativos do chamado e os campos
-  personalizados do plugin Fields.
-- Não altera nada no GLPI: é só leitura.
+- exportar_relatorio_ocorrencias.py: busca os chamados de uma entidade no
+  GLPI do ano corrente (via API de busca) e gera um arquivo .xlsx formatado,
+  com uma aba "Anual" (todos os chamados do ano) e uma aba por mês que tiver
+  ao menos um chamado — campos nativos do chamado + campos personalizados do
+  plugin Fields. Não altera nada no GLPI: é só leitura.
+- enviar_relatorio.php: envia esse arquivo por e-mail, reaproveitando a
+  configuração de e-mail já existente no GLPI (a mesma usada pelas
+  notificações) — não precisa de credenciais SMTP próprias.
 
-ANTES DE USAR
+ANTES DE USAR (exportar_relatorio_ocorrencias.py)
 1. Copie config_exemplo.json para config.json e preencha api_url, app_token
    e user_token.
 2. Instale a dependência: pip install openpyxl
    (em servidores com Python gerenciado pelo sistema, pode ser necessário
    pip install --break-system-packages openpyxl, ou usar um ambiente
-   virtual)
+   virtual — instale com o mesmo `python3` que vai rodar o script, ex.:
+   python3 -m pip install --break-system-packages openpyxl)
 3. Ajuste a constante ENTITY_OCORRENCIAS e a lista PLUGIN_COLUMNS no topo
    do script para a entidade e os IDs de campo do seu GLPI (os IDs de
    campo do plugin Fields aparecem em Configurar > Listas suspensas, ou
    via /listSearchOptions/Ticket na API).
 
 COMO USAR
-    python exportar_relatorio_ocorrencias.py [caminho_saida.xlsx]
-Sem argumento, salva na pasta atual com o nome
-Relatorio_Ocorrencias_AAAAMMDD_HHMM.xlsx
+    python exportar_relatorio_ocorrencias.py [caminho_saida.xlsx] [ano]
+Sem argumento, salva na pasta atual com o nome Relatorio_Ocorrencias_<ano>.xlsx
+(ano corrente por padrão).
+
+ANTES DE USAR (enviar_relatorio.php)
+1. Ajuste os caminhos dos dois require_once no topo do script para onde o
+   GLPI está instalado no seu servidor (raiz do GLPI).
+2. Edite a lista $destinatarios com os e-mails que devem receber o relatório.
+3. Deve ser executado com o mesmo usuário do servidor web (ex.: www-data),
+   não com um usuário comum — é ele quem tem acesso ao ambiente do GLPI
+   (banco, configuração, log de erros).
+
+COMO USAR
+    sudo -u www-data php enviar_relatorio.php <caminho_do_arquivo.xlsx>
 
 AGENDAR EXECUÇÃO AUTOMÁTICA (mensal, em um servidor Linux sempre ligado)
 1. Crie um cliente de API dedicado a essa automação em
    Configurar > Geral > API (restrinja o IP permitido ao próprio
-   servidor, separado do cliente usado para uso interativo).
-2. Copie o script e o config.json para o servidor (ex.: ~/relatorio_ocorrencias/)
-   e restrinja a permissão do config.json: chmod 600 config.json
-3. Adicione ao crontab (dia 1º de cada mês, às 8h):
+   servidor, separado do cliente usado para uso interativo). O app_token só
+   aparece uma vez na tela no momento em que é gerado — não é possível
+   recuperá-lo depois, nem pelo banco de dados nem pela API.
+2. Copie os dois scripts e o config.json para o servidor (ex.:
+   ~/relatorio_ocorrencias/) e restrinja a permissão do config.json:
+   chmod 600 config.json
+3. Se a pasta do script ficar dentro do home de um usuário comum (ex.:
+   /home/usuario/relatorio_ocorrencias), dê ao usuário do servidor web
+   permissão para *atravessar* essa pasta home (sem isso, o PHP não
+   consegue abrir o arquivo gerado, mesmo com o arquivo em si acessível):
+   chmod o+x /home/usuario
+4. Adicione ao crontab (dia 1º de cada mês, às 8h):
      crontab -e
-   e acrescente a linha:
-     0 8 1 * * cd /caminho/para/relatorio_ocorrencias && /usr/bin/python3 exportar_relatorio_ocorrencias.py >> relatorio.log 2>&1
+   e acrescente a linha (ajuste os caminhos):
+     0 8 1 * * cd /caminho/para/relatorio_ocorrencias && /usr/bin/python3 exportar_relatorio_ocorrencias.py >> relatorio.log 2>&1 && sudo -u www-data php enviar_relatorio.php Relatorio_Ocorrencias_$(date +\%Y).xlsx >> relatorio.log 2>&1
 
 OBSERVAÇÕES
 - O token de API (app_token) e o token pessoal (user_token) só são
   exibidos uma vez, no momento em que são gerados/regenerados na
   interface do GLPI. Não é possível recuperá-los depois — nem pelo banco
-  de dados, nem pela API.
-- O script não envia e-mail nem faz upload do arquivo gerado; ele só
-  salva localmente. Para distribuição automática, seria necessário
-  integrar com um servidor SMTP à parte.
+  de dados nem pela API.
+- enviar_relatorio.php usa a classe interna GLPIMailer do GLPI (o mesmo
+  bootstrap usado por front/cron.php), lendo o remetente padrão
+  (Config core: admin_email / admin_email_name) — não é necessário
+  informar usuário/senha de SMTP em nenhum lugar deste projeto.
