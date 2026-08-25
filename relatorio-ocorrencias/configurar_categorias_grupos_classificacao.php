@@ -92,6 +92,13 @@ foreach (['Ocorrências Armazém', 'Ocorrências SJP'] as $nome) {
 // (numeração igual à planilha da Qualidade) + move pra cá o campo "Inserir
 // na avaliação motorista?", que sai da abertura do chamado e fica oculto de
 // quem abre, só visível/editável nesta aba.
+// Nota: se este campo for criado por fora deste script (ex.: chamada direta
+// na API REST em vez de PluginFieldsField::add()), a coluna correspondente
+// pode não ser criada na tabela glpi_plugin_fields_ticketdadosdaocorrncias,
+// e o valor salva sem erro só que se perde. Se acontecer, verifique com
+// DESCRIBE glpi_plugin_fields_ticketdadosdaocorrncias e adicione manualmente:
+//   ALTER TABLE glpi_plugin_fields_ticketdadosdaocorrncias
+//   ADD COLUMN plugin_fields_codigoqualidadefielddropdowns_id INT(11) NOT NULL DEFAULT 0;
 $field = new PluginFieldsField();
 $fieldId = $field->add([
     'name' => 'codigoqualidadefield',
