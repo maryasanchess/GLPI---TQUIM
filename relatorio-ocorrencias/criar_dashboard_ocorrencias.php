@@ -16,11 +16,18 @@ $kernel->boot();
 global $DB;
 
 $defaults = Dashboard::getDefaults();
-if (!isset($defaults['assistance'])) {
-    fwrite(STDERR, "Preset 'assistance' não encontrado.\n");
+$preset = null;
+foreach ($defaults as $candidato) {
+    if (($candidato['key'] ?? null) === 'assistance') {
+        $preset = $candidato;
+        break;
+    }
+}
+if ($preset === null) {
+    fwrite(STDERR, "Preset 'assistance' não encontrado. Chaves disponíveis: "
+        . implode(', ', array_column($defaults, 'key')) . "\n");
     exit(1);
 }
-$preset = $defaults['assistance'];
 
 $dashboardKey = 'ocorrencias';
 
