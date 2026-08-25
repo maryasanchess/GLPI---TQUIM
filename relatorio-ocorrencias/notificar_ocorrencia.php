@@ -146,20 +146,28 @@ if (is_file(ARQUIVO_ESTADO)) {
     $ultimoId = (int) trim(file_get_contents(ARQUIVO_ESTADO));
 }
 
-$sql = 'SELECT t.id, t.name AS titulo, t.priority, c.name AS categoria
-        FROM glpi_tickets t
-        LEFT JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
-        WHERE t.entities_id = ' . ((int) ENTIDADE_OCORRENCIAS) . '
-          AND t.is_deleted = 0
-          AND t.id > ' . ((int) $ultimoId) . '
-        ORDER BY t.id ASC';
+$criteriosTickets = [
+    'SELECT' => ['t.id', 't.name AS titulo', 't.priority', 'c.name AS categoria'],
+    'FROM' => 'glpi_tickets AS t',
+    'LEFT JOIN' => [
+        'glpi_itilcategories AS c' => [
+            'FKEY' => ['c' => 'id', 't' => 'itilcategories_id'],
+        ],
+    ],
+    'WHERE' => [
+        't.entities_id' => ENTIDADE_OCORRENCIAS,
+        't.is_deleted' => 0,
+        't.id' => ['>', $ultimoId],
+    ],
+    'ORDER' => 't.id ASC',
+];
 
 $prioridades = [1 => 'Muito baixa', 2 => 'Baixa', 3 => 'Média', 4 => 'Alta', 5 => 'Muito alta', 6 => 'Crítica'];
 
 $maiorId = $ultimoId;
 $enviados = 0;
 
-foreach ($DB->request(['SQL' => $sql]) as $ticket) {
+foreach ($DB->request($criteriosTickets) as $ticket) {
     $maiorId = max($maiorId, (int) $ticket['id']);
 
     $dadosIt = $DB->request([
