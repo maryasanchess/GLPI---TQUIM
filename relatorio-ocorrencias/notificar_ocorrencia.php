@@ -24,52 +24,27 @@ $destinatarios = [
     ['email' => 'marya.souza@tquim.com.br', 'name' => 'Marya Souza'],
 ];
 
-$yesno = static fn($v) => ((int) $v === 1) ? 'Sim' : 'Não';
+$yesno = static fn($v) => ($v === '' || $v === null) ? '' : (((int) $v === 1) ? 'Sim' : 'Não');
 
-// (rótulo, coluna na tabela principal, formatador opcional)
-$camposDiretos = [
-    ['Placa Tração', 'placatraofield', null],
-    ['Placa Semi-Reboque', 'placasemireboquefield', null],
-    ['Cód. Frota Tração', 'cdfrotatraofield', null],
-    ['Cód. Frota Semi Reboque', 'cdfrotasemireboquefield', null],
-    ['Colaborador Motorista', 'colaboradormotoristafield', null],
-    ['Cargo/Função', 'cargofunofield', null],
-    ['Depto/Setor', 'deptosetorfield', null],
-    ['OC / CT-e / NF', 'occtefield', null],
-    ['Produto', 'produtofield', null],
-    ['Origem', 'origemfield', null],
-    ['Destino', 'destinofield', null],
-    ['Cliente', 'clientefield', null],
-    ['Local da Ocorrência', 'localdaocorrnciafield', null],
-    ['Descrição da Ocorrência', 'descriodaocorrnciafield', null],
-    ['Providências já Tomadas', 'providnciasjtomadafield', null],
-    ['Responsável pela Análise / Ações Corretivas', 'responsvelpelaanliseaescorretivafield', null],
-    ['Início da Jornada', 'inciodajornadafield', null],
-    ['Fim da Jornada', 'fimdajornadafield', null],
-    ['Início do Carregamento', 'inciodocarregamentofield', null],
-    ['Fim do Carregamento', 'fimdocarregamentofield', null],
-    ['Impacto ao Cliente', 'impactoaoclientefield', $yesno],
-    ['Outras Observações', 'outrasobservaefield', null],
-    ['Inserir na avaliação motorista', 'inserirnaavaliaomotoristafield', $yesno],
-    ['Custos da NC', 'custosdancfield', null],
-    ['Cod. Multa', 'codmultafield', null],
-    ['S.A.', 'safield', null],
-    ['Plano de Ações', 'planodeaefield', null],
-    ['Levantamento de Custos', 'levantamentodecustofield', null],
-    ['Quantidade que vazou', 'quantidadequevazoufield', null],
-    ['Custo Total', 'custototalfield', null],
-    ['Acionamento SuatransPamcary', 'acionamentosuatranspamcaryfield', $yesno],
-    ['Houve vazamento', 'houvevazamentofield', $yesno],
-];
+function campo(string $coluna): callable
+{
+    return static fn(array $d) => (string) ($d[$coluna] ?? '');
+}
 
-// (rótulo, coluna da FK na tabela principal, tabela do dropdown)
-$camposDropdown = [
-    ['Situação da Carga', 'plugin_fields_situaodacargafielddropdowns_id', 'glpi_plugin_fields_situaodacargafielddropdowns'],
-    ['Motivo', 'plugin_fields_motivofielddropdowns_id', 'glpi_plugin_fields_motivofielddropdowns'],
-    ['Tipo de NC', 'plugin_fields_tipodencfielddropdowns_id', 'glpi_plugin_fields_tipodencfielddropdowns'],
-    ['Classificação', 'plugin_fields_classificaofielddropdowns_id', 'glpi_plugin_fields_classificaofielddropdowns'],
-    ['Responsável (Cliente/Motorista)', 'plugin_fields_responsvelclientemotoristafielddropdowns_id', 'glpi_plugin_fields_responsvelclientemotoristafielddropdowns'],
-];
+function campoFmt(string $coluna, callable $fmt): callable
+{
+    return static function (array $d) use ($coluna, $fmt) {
+        $v = $d[$coluna] ?? '';
+        return ($v === '' || $v === null) ? '' : $fmt($v);
+    };
+}
+
+function dropdown(string $colunaFk, string $tabela): callable
+{
+    return static function (array $d) use ($colunaFk, $tabela) {
+        return resolverDropdown((int) ($d[$colunaFk] ?? 0), $tabela);
+    };
+}
 
 function resolverDropdown(int $id, string $tabela): string
 {
@@ -84,35 +59,93 @@ function resolverDropdown(int $id, string $tabela): string
     return '';
 }
 
-function montarLinhaTabela(string $rotulo, string $valor): string
+// Layout na mesma ordem/agrupamento do modelo em .docx (Comunicado de
+// Ocorrência), seguido do bloco de Tratativa/Classificação (só existe na
+// planilha de controle, sem equivalente no .docx original).
+// Cada item: ['unico', rótulo, getter] ou ['par', rótulo1, getter1, rótulo2, getter2]
+$layout = [
+    ['par', 'Placa Tração', campo('placatraofield'), 'Cód. Frota Tração', campo('cdfrotatraofield')],
+    ['par', 'Placa Semi-Reboque', campo('placasemireboquefield'), 'Cód. Frota Semi Reboque', campo('cdfrotasemireboquefield')],
+    ['unico', 'Motorista/Colaborador', campo('colaboradormotoristafield')],
+    ['par', 'Cargo/Função', campo('cargofunofield'), 'Depto/Setor', campo('deptosetorfield')],
+    ['par', 'OC / CT-e / NF', campo('occtefield'), 'Situação da Carga', dropdown('plugin_fields_situaodacargafielddropdowns_id', 'glpi_plugin_fields_situaodacargafielddropdowns')],
+    ['unico', 'Produto', campo('produtofield')],
+    ['unico', 'Cliente', campo('clientefield')],
+    ['unico', 'Origem', campo('origemfield')],
+    ['unico', 'Destino', campo('destinofield')],
+    ['unico', 'Local da Ocorrência', campo('localdaocorrnciafield')],
+    ['unico', 'Descrição da Ocorrência', campo('descriodaocorrnciafield')],
+    ['unico', 'Providências já Tomadas', campo('providnciasjtomadafield')],
+    ['unico', 'Responsável pela Análise / Ações Corretivas', campo('responsvelpelaanliseaescorretivafield')],
+    ['par', 'Início da Jornada', campo('inciodajornadafield'), 'Fim da Jornada', campo('fimdajornadafield')],
+    ['par', 'Início do Carregamento', campo('inciodocarregamentofield'), 'Fim do Carregamento', campo('fimdocarregamentofield')],
+    ['par', 'Motivo', dropdown('plugin_fields_motivofielddropdowns_id', 'glpi_plugin_fields_motivofielddropdowns'), 'Responsável', dropdown('plugin_fields_responsvelclientemotoristafielddropdowns_id', 'glpi_plugin_fields_responsvelclientemotoristafielddropdowns')],
+    ['unico', 'Impacto ao Cliente?', campoFmt('impactoaoclientefield', $yesno)],
+    ['unico', 'Outras Observações', campo('outrasobservaefield')],
+    ['unico', 'Lançar na avaliação do colaborador?', campoFmt('inserirnaavaliaomotoristafield', $yesno)],
+    ['unico', 'Custos da NC', campo('custosdancfield')],
+];
+
+$layoutTratativa = [
+    ['par', 'Cod. Multa', campo('codmultafield'), 'S.A.', campo('safield')],
+    ['unico', 'Plano de Ações', campo('planodeaefield')],
+    ['unico', 'Levantamento de Custos', campo('levantamentodecustofield')],
+    ['par', 'Quantidade que vazou', campo('quantidadequevazoufield'), 'Custo Total', campo('custototalfield')],
+    ['par', 'Acionamento SuatransPamcary?', campoFmt('acionamentosuatranspamcaryfield', $yesno), 'Houve vazamento?', campoFmt('houvevazamentofield', $yesno)],
+    ['par', 'Tipo de NC', dropdown('plugin_fields_tipodencfielddropdowns_id', 'glpi_plugin_fields_tipodencfielddropdowns'), 'Classificação', dropdown('plugin_fields_classificaofielddropdowns_id', 'glpi_plugin_fields_classificaofielddropdowns')],
+];
+
+function montarLinhaUnica(string $rotulo, string $valor): string
 {
-    if ($valor === '' || $valor === null) {
-        return '';
-    }
-    $valorEscapado = htmlspecialchars($valor, ENT_QUOTES, 'UTF-8');
-    $rotuloEscapado = htmlspecialchars($rotulo, ENT_QUOTES, 'UTF-8');
-    return '<tr><td style="background: #f8f9fb; padding: 8px; border-bottom: 1px solid #e5e5e5;" width="220"><strong>'
-        . $rotuloEscapado . '</strong></td>'
-        . '<td style="padding: 8px; border-bottom: 1px solid #e5e5e5;">' . $valorEscapado . '</td></tr>';
+    $v = htmlspecialchars($valor !== '' ? $valor : '-', ENT_QUOTES, 'UTF-8');
+    $r = htmlspecialchars($rotulo, ENT_QUOTES, 'UTF-8');
+    return '<tr>'
+        . '<td style="background: #f8f9fb; padding: 8px; border-bottom: 1px solid #e5e5e5; border-right: 1px solid #e5e5e5;" width="220"><strong>' . $r . '</strong></td>'
+        . '<td style="padding: 8px; border-bottom: 1px solid #e5e5e5;" colspan="3">' . $v . '</td>'
+        . '</tr>';
 }
 
-function montarEmail(array $ticket, array $dados, array $camposDiretos, array $camposDropdown): string
+function montarLinhaPar(string $r1, string $v1, string $r2, string $v2): string
 {
-    $linhas = '';
-    $linhas .= montarLinhaTabela('Categoria', $ticket['categoria']);
-    $linhas .= montarLinhaTabela('Prioridade', $ticket['prioridade']);
+    $r1 = htmlspecialchars($r1, ENT_QUOTES, 'UTF-8');
+    $r2 = htmlspecialchars($r2, ENT_QUOTES, 'UTF-8');
+    $v1 = htmlspecialchars($v1 !== '' ? $v1 : '-', ENT_QUOTES, 'UTF-8');
+    $v2 = htmlspecialchars($v2 !== '' ? $v2 : '-', ENT_QUOTES, 'UTF-8');
+    return '<tr>'
+        . '<td style="background: #f8f9fb; padding: 8px; border-bottom: 1px solid #e5e5e5; border-right: 1px solid #e5e5e5;" width="180"><strong>' . $r1 . '</strong></td>'
+        . '<td style="padding: 8px; border-bottom: 1px solid #e5e5e5; border-right: 1px solid #e5e5e5;" width="170">' . $v1 . '</td>'
+        . '<td style="background: #f8f9fb; padding: 8px; border-bottom: 1px solid #e5e5e5; border-right: 1px solid #e5e5e5;" width="180"><strong>' . $r2 . '</strong></td>'
+        . '<td style="padding: 8px; border-bottom: 1px solid #e5e5e5;">' . $v2 . '</td>'
+        . '</tr>';
+}
 
-    foreach ($camposDiretos as [$rotulo, $coluna, $formatador]) {
-        $valor = $dados[$coluna] ?? '';
-        if ($formatador !== null && $valor !== '' && $valor !== null) {
-            $valor = $formatador($valor);
+function montarLinhas(array $layout, array $dados): string
+{
+    $out = '';
+    foreach ($layout as $item) {
+        if ($item[0] === 'unico') {
+            [, $rotulo, $getter] = $item;
+            $out .= montarLinhaUnica($rotulo, $getter($dados));
+        } else {
+            [, $r1, $g1, $r2, $g2] = $item;
+            $out .= montarLinhaPar($r1, $g1($dados), $r2, $g2($dados));
         }
-        $linhas .= montarLinhaTabela($rotulo, (string) $valor);
     }
-    foreach ($camposDropdown as [$rotulo, $colunaFk, $tabela]) {
-        $valor = resolverDropdown((int) ($dados[$colunaFk] ?? 0), $tabela);
-        $linhas .= montarLinhaTabela($rotulo, $valor);
-    }
+    return $out;
+}
+
+function montarTituloSecao(string $texto): string
+{
+    $t = htmlspecialchars($texto, ENT_QUOTES, 'UTF-8');
+    return '<tr><td colspan="4" style="background: #FFFF99; color: #333333; padding: 8px 10px; font-weight: bold; border-bottom: 1px solid #d4d9e2;">' . $t . '</td></tr>';
+}
+
+function montarEmail(array $ticket, array $dados, array $layout, array $layoutTratativa): string
+{
+    $linhas = montarLinhaPar('Categoria', $ticket['categoria'], 'Prioridade', $ticket['prioridade']);
+    $linhas .= montarLinhas($layout, $dados);
+    $linhas .= montarTituloSecao('TRATATIVA E CLASSIFICAÇÃO');
+    $linhas .= montarLinhas($layoutTratativa, $dados);
 
     $url = rtrim($GLOBALS['CFG_GLPI']['url_base'] ?? '', '/') . '/front/ticket.form.php?id=' . $ticket['id'];
 
@@ -188,7 +221,7 @@ foreach ($DB->request($criteriosTickets) as $ticket) {
         'prioridade' => $prioridades[(int) $ticket['priority']] ?? '',
     ];
 
-    $html = montarEmail($ticketInfo, $dados, $camposDiretos, $camposDropdown);
+    $html = montarEmail($ticketInfo, $dados, $layout, $layoutTratativa);
 
     $config = Config::getConfigurationValues('core', ['admin_email', 'admin_email_name']);
     $mailer = new GLPIMailer();
