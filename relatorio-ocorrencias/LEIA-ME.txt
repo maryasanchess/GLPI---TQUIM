@@ -10,6 +10,19 @@ O QUE FAZ
 - enviar_relatorio.php: envia esse arquivo por e-mail, reaproveitando a
   configuração de e-mail já existente no GLPI (a mesma usada pelas
   notificações) — não precisa de credenciais SMTP próprias.
+- notificar_ocorrencia.php: roda em polling (via cron, a cada poucos
+  minutos), detecta chamados novos numa entidade e envia um e-mail já
+  preenchido com os valores reais dos campos do plugin Fields, no layout do
+  Comunicado de Ocorrência — o GLPI não permite isso nas notificações
+  nativas (campos de plugin não têm tag disponível). Também define o
+  cabeçalho Message-ID no mesmo formato usado pelo GLPI, para que respostas
+  por e-mail sejam reconhecidas pelo Coletor de E-mails e virem
+  acompanhamento no chamado.
+- criar_dashboard_ocorrencias.php: cria um Dashboard novo reaproveitando os
+  cards do modelo padrão "Assistência" do GLPI (Dashboard::getDefaults()),
+  removendo os que não fazem sentido fora de um contexto de suporte de TI
+  (Problemas, Mudanças, Chamados Recorrentes, por Entidade, por Tipo de
+  Requisição) e destacando o card de Categoria. Só precisa rodar uma vez.
 
 ANTES DE USAR (exportar_relatorio_ocorrencias.py)
 1. Copie config_exemplo.json para config.json e preencha api_url, app_token
@@ -39,6 +52,30 @@ ANTES DE USAR (enviar_relatorio.php)
 
 COMO USAR
     sudo -u www-data php enviar_relatorio.php <caminho_do_arquivo.xlsx>
+
+ANTES DE USAR (notificar_ocorrencia.php)
+1. Ajuste os caminhos dos require_once, a constante ENTIDADE_OCORRENCIAS, a
+   lista $destinatarios e os nomes de tabela/coluna do plugin Fields (mesma
+   observação do exportar_relatorio_ocorrencias.py) no topo do script.
+2. Também deve ser executado como o usuário do servidor web.
+3. Na primeira execução, para não notificar retroativamente todos os
+   chamados já existentes na entidade, inicialize o arquivo de estado com o
+   maior ID de chamado já existente:
+     echo "<maior id atual>" > ultimo_id.txt
+
+COMO USAR
+    sudo -u www-data php notificar_ocorrencia.php
+Agendado (a cada 5 minutos, por exemplo): */5 * * * * cd /caminho && sudo -u www-data php notificar_ocorrencia.php >> notificacao.log 2>&1
+
+ANTES DE USAR (criar_dashboard_ocorrencias.php)
+Ajuste $dashboardKey e o nome do dashboard no topo do script, se quiser.
+
+COMO USAR
+    sudo -u www-data php criar_dashboard_ocorrencias.php
+Depois, troque a entidade ativa para a entidade em questão antes de abrir o
+dashboard — o GLPI não tem um jeito nativo de travar um dashboard numa
+entidade fixa; os cards sempre respeitam a entidade ativa de quem está
+vendo.
 
 AGENDAR EXECUÇÃO AUTOMÁTICA (mensal, em um servidor Linux sempre ligado)
 1. Crie um cliente de API dedicado a essa automação em
