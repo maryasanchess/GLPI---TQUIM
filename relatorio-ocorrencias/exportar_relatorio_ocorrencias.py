@@ -95,7 +95,7 @@ ALL_COLUMNS = NATIVE_COLUMNS + PLUGIN_COLUMNS
 # Cores do modelo de abertura de Ocorrência (mesmas do e-mail de notificação)
 COR_CABECALHO = "FFFF99"
 COR_TEXTO_CABECALHO = "333333"
-COR_LINHA_PAR = "FFF8D6"
+COR_LINHA_PAR = "FFFACD"
 COR_BORDA = "D4D9E2"
 
 LARGURAS = {
@@ -239,7 +239,7 @@ def montar_planilha(linhas_ano, ano, caminho_saida):
 
     grupos = agrupar_por_mes(linhas_ano)
     for mes in sorted(grupos):
-        ws_mes = wb.create_sheet(MESES[mes])
+        ws_mes = wb.create_sheet(f"{MESES[mes]} - {ano}")
         escrever_aba(ws_mes, grupos[mes])
 
     wb.save(caminho_saida)
