@@ -133,7 +133,12 @@ foreach ($DB->request($criterios) as $row) {
             'content' => $comentario,
             '_disablenotifications' => true,
         ]);
-        $ticket->update(['id' => $ticketId, 'status' => 6, '_disablenotifications' => true]);
+        // Recarrega o chamado do zero antes de fechar - reusar o objeto que
+        // já rodou getUsers() nele pode não atualizar o status de verdade.
+        $ticketFechar = new Ticket();
+        $ticketFechar->getFromDB($ticketId);
+        $fechou = $ticketFechar->update(['id' => $ticketId, 'status' => 6, '_disablenotifications' => true]);
+        echo $fechou ? "Chamado {$ticketId} fechado.\n" : "AVISO: não consegui fechar o chamado {$ticketId}.\n";
     }
 
     $processados++;
