@@ -89,16 +89,32 @@ foreach (['Ocorrências Armazém', 'Ocorrências SJP'] as $nome) {
 }
 
 // 3. Bloco "Classificação da Qualidade": campo com os 14 códigos do Quadro 1
-// (numeração igual à planilha da Qualidade) + move pra cá o campo "Inserir
-// na avaliação motorista?", que sai da abertura do chamado e fica oculto de
-// quem abre, só visível/editável nesta aba.
-// Nota: se este campo for criado por fora deste script (ex.: chamada direta
-// na API REST em vez de PluginFieldsField::add()), a coluna correspondente
-// pode não ser criada na tabela glpi_plugin_fields_ticketdadosdaocorrncias,
-// e o valor salva sem erro só que se perde. Se acontecer, verifique com
-// DESCRIBE glpi_plugin_fields_ticketdadosdaocorrncias e adicione manualmente:
+// (numeração igual à planilha da Qualidade).
+// Nota 1: se este campo for criado por fora deste script (ex.: chamada
+// direta na API REST em vez de PluginFieldsField::add()), a coluna
+// correspondente pode não ser criada na tabela
+// glpi_plugin_fields_ticketdadosdaocorrncias, e o valor salva sem erro só
+// que se perde. Se acontecer, verifique com DESCRIBE
+// glpi_plugin_fields_ticketdadosdaocorrncias e adicione manualmente:
 //   ALTER TABLE glpi_plugin_fields_ticketdadosdaocorrncias
 //   ADD COLUMN plugin_fields_codigoqualidadefielddropdowns_id INT(11) NOT NULL DEFAULT 0;
+// Nota 2: NÃO tentamos mover um campo já existente (ex.:
+// inserirnaavaliaomotoristafield) de outro container pra este, pra "ocultar
+// da abertura" - fizemos isso uma vez e quebrou a busca desse campo em todo
+// o GLPI (erro 500 em qualquer tela que usasse o search-option dele). Um
+// campo mudar de container com segurança exige recriar do zero direto no
+// container novo (como codigoqualidadefield foi criado aqui), não mover um
+// já existente. Cada container tem sua PRÓPRIA linha por chamado na mesma
+// tabela compartilhada (chave items_id + itemtype + plugin_fields_containers_id) -
+// ao gravar dados deste bloco pela API, use plugin_fields_containers_id =
+// CONTAINER_CLASSIFICACAO, não o container 1.
+// Nota 3: o /search/Ticket do GLPI não resolve corretamente o valor deste
+// campo (sempre retorna vazio, mesmo com o dado certo salvo) quando ele
+// pertence a um container extra (não o primeiro criado pro itemtype). Pra
+// ler esse campo em relatórios, busque direto em
+// PluginFieldsTicketdadosdaocorrncia (filtrando plugin_fields_containers_id
+// = CONTAINER_CLASSIFICACAO), não via forcedisplay na busca de Ticket - ver
+// exportar_avaliacao_motoristas.py pra um exemplo funcionando.
 $field = new PluginFieldsField();
 $fieldId = $field->add([
     'name' => 'codigoqualidadefield',
@@ -133,12 +149,9 @@ foreach ($codigos as $nome) {
     echo "  código '$nome' (id $id)\n";
 }
 
-$campoAvaliacao = $DB->request(['FROM' => 'glpi_plugin_fields_fields', 'WHERE' => ['name' => 'inserirnaavaliaomotoristafield']]);
-foreach ($campoAvaliacao as $row) {
-    $field = new PluginFieldsField();
-    $field->update(['id' => $row['id'], 'plugin_fields_containers_id' => CONTAINER_CLASSIFICACAO, 'ranking' => 2]);
-    echo "Campo 'Inserir na avaliação motorista?' movido pro bloco de Classificação\n";
-}
+// "Inserir na avaliação motorista?" continua no bloco original (container
+// 1), visível na abertura do chamado - ver Nota 2 acima sobre por que não
+// movemos ele pra cá.
 
 // 4. Data de abertura automática (igual ao template de TI): valor
 // predefinido "NOW" faz o campo vir preenchido e travado (somente leitura).

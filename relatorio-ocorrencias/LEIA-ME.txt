@@ -26,12 +26,19 @@ O QUE FAZ
 - configurar_categorias_grupos_classificacao.php: reorganiza as categorias
   de Ocorrências em pai/filho (ex.: Manutenção > Elétrica/Mecânica/Predial),
   cria os grupos por unidade (Ocorrências Armazém, Ocorrências SJP), cria o
-  bloco "Classificação da Qualidade" (código do Quadro 1 da Qualidade +
-  campo de avaliação do motorista, ocultos da abertura do chamado) e deixa a
+  bloco "Classificação da Qualidade" (código do Quadro 1 da Qualidade) e deixa a
   Data de abertura automática/travada como no template de TI. Só precisa
   rodar uma vez — e tem um passo manual obrigatório antes (ver comentário no
   topo do script): o bloco da Qualidade precisa ser criado pela tela do
   GLPI, não pela API (bug conhecido do plugin Fields).
+- exportar_avaliacao_motoristas.py: gera a base do relatório de avaliação de
+  motoristas — lista as ocorrências que a Qualidade já classificou (bloco
+  "Classificação da Qualidade" preenchido) E que foram marcadas para entrar
+  na avaliação, uma aba com tudo e outra com contagem por motorista. Ainda
+  não calcula desconto de pontos (falta a tabela da Qualidade dizendo quanto
+  cada código tira). Busca os campos de plugin direto da tabela do plugin
+  Fields, não pelo /search/Ticket — pedir muitas colunas de plugin de uma
+  vez na busca nativa deixa o GLPI lento a ponto de travar (testado).
 
 ANTES DE USAR (exportar_relatorio_ocorrencias.py)
 1. Copie config_exemplo.json para config.json e preencha api_url, app_token
