@@ -8,6 +8,15 @@
 // Ocorrências (que não consegue mostrar os campos do plugin Fields).
 //
 // Uso: php notificar_ocorrencia.php
+//
+// IMPORTANTE sobre agendamento: coloque o agendamento no crontab do PRÓPRIO
+// www-data ("sudo crontab -u www-data -e"), não no crontab de um usuário
+// comum chamando "sudo -u www-data php ...". Cron nunca tem terminal, então
+// esse "sudo" sempre falha silenciosamente com "a terminal is required to
+// authenticate" (e some sem deixar rastro se não houver servidor de e-mail
+// local). Além disso, notificacao.log e ultimo_id.txt precisam ser do dono
+// www-data (veja LEIA-ME.txt) - senão o próprio redirecionamento ">>" falha
+// antes do PHP rodar.
 
 require_once '/var/www/html/glpi/src/Glpi/Application/ResourcesChecker.php';
 require_once '/var/www/html/glpi/vendor/autoload.php';

@@ -63,9 +63,34 @@ ANTES DE USAR (notificar_ocorrencia.php)
    maior ID de chamado já existente:
      echo "<maior id atual>" > ultimo_id.txt
 
-COMO USAR
+COMO USAR (manual, pra testar)
     sudo -u www-data php notificar_ocorrencia.php
-Agendado (a cada 5 minutos, por exemplo): */5 * * * * cd /caminho && sudo -u www-data php notificar_ocorrencia.php >> notificacao.log 2>&1
+
+AGENDADO (a cada 5 minutos) — NÃO coloque isso no crontab de um usuário
+comum chamando "sudo -u www-data ...". Cron nunca tem terminal, então esse
+sudo falha sempre com "a terminal is required to authenticate" — e se o
+servidor não tiver um serviço de e-mail local instalado, esse erro some sem
+deixar rastro em lugar nenhum (foi exatamente o que aconteceu na TQUIM: o
+cron rodava, o sudo falhava calado, e nenhum e-mail saía, sem nenhum erro
+visível). Em vez disso:
+
+1. Garanta que notificacao.log e ultimo_id.txt sejam do dono www-data:
+     sudo touch notificacao.log
+     sudo chown www-data:www-data notificacao.log ultimo_id.txt
+   (sem isso, o próprio ">> notificacao.log" falha silenciosamente antes do
+   PHP rodar, porque só o dono/grupo do arquivo tem permissão de escrita.)
+
+2. Coloque o agendamento direto no crontab do PRÓPRIO www-data (roda nativo,
+   sem precisar de sudo nem senha depois de configurado):
+     sudo crontab -u www-data -e
+   e adicione a linha (sem "sudo -u www-data" — já é o dono):
+     */5 * * * * cd /caminho/para/relatorio_ocorrencias && php notificar_ocorrencia.php >> notificacao.log 2>&1
+
+3. Confira que pegou: sudo crontab -u www-data -l
+   E depois de alguns minutos: tail notificacao.log (deve ter "Enviado: ..."
+   quando houver chamado novo, ou nada se não houver nada pra notificar —
+   mas o arquivo deve continuar existindo e acessível, e a data de
+   modificação dele deve avançar a cada execução).
 
 ANTES DE USAR (criar_dashboard_ocorrencias.php)
 Ajuste $dashboardKey e o nome do dashboard no topo do script, se quiser.
