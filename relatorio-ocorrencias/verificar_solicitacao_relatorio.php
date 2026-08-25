@@ -68,6 +68,7 @@ foreach ($DB->request($criterios) as $row) {
     }
 
     $emailRequerente = '';
+    $nomeRequerente = '';
     $requerentes = $ticket->getUsers(CommonITILActor::REQUESTER);
     foreach ($requerentes as $r) {
         $userId = (int) ($r['users_id'] ?? 0);
@@ -77,6 +78,7 @@ foreach ($DB->request($criterios) as $row) {
                 $email = $user->getDefaultEmail();
                 if ($email) {
                     $emailRequerente = strtolower($email);
+                    $nomeRequerente = $user->getFriendlyName() ?: $emailRequerente;
                     break;
                 }
             }
@@ -101,7 +103,7 @@ foreach ($DB->request($criterios) as $row) {
             $config = Config::getConfigurationValues('core', ['admin_email', 'admin_email_name']);
             $mailer = new GLPIMailer();
             $mailer->setFrom($config['admin_email'], $config['admin_email_name'] ?? '');
-            $mailer->addAddress($emailRequerente);
+            $mailer->addAddress($emailRequerente, $nomeRequerente);
             $mailer->isHTML(true);
             $email = $mailer->getEmail();
             $email->subject('Relatório de Ocorrências - solicitado por e-mail');
