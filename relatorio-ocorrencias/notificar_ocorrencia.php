@@ -234,6 +234,13 @@ foreach ($DB->request($criteriosTickets) as $ticket) {
     $email->subject('COMUNICADO DE OCORRÊNCIA - ' . $ticket['titulo']);
     $email->html($html);
 
+    // Mesmo formato de Message-ID que o GLPI usa nas notificações nativas,
+    // para que respostas por e-mail sejam reconhecidas pelo Coletor de
+    // E-mails e viram acompanhamento no chamado (ver
+    // NotificationTarget::getMessageIdForEvent() e MailCollector::isResponseToMessageSentByAnotherGlpi()).
+    $messageId = NotificationTarget::getMessageIdForEvent('Ticket', (int) $ticket['id'], 'new');
+    $email->getHeaders()->addIdHeader('Message-ID', $messageId);
+
     if ($mailer->send()) {
         echo "Enviado: chamado {$ticket['id']}\n";
         $enviados++;
