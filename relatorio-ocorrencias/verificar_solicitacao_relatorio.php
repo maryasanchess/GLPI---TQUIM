@@ -1,28 +1,23 @@
 <?php
-// Verifica se chegou um e-mail pedindo o relatório de Ocorrências fora do
-// dia agendado. Roda em polling (via cron), lendo a MESMA caixa que o GLPI
-// já usa pra abrir chamados (chamados.ti@tquim.com.br, MailCollector id 1)
-// - reaproveita a credencial já cadastrada no GLPI, sem precisar guardar
-// senha de e-mail em lugar nenhum deste script.
+// Permite pedir o relatório de Ocorrências por e-mail, fora do dia
+// agendado do mês.
 //
-// COMO PEDIR: mandar um e-mail pra chamados.ti@tquim.com.br com o assunto
-// contendo a palavra "RELATORIO OCORRENCIAS" (não sensível a maiúsculas),
-// de um endereço autorizado (lista $remetentesAutorizados abaixo). O
-// relatório do ano corrente é gerado e enviado de volta pro remetente.
+// COMO PEDIR: mandar um e-mail pra chamados.ti@tquim.com.br com
+// "RELATORIO OCORRENCIAS" no assunto, de um endereço autorizado (lista
+// $remetentesAutorizados abaixo).
 //
-// Não apaga nenhum e-mail: só marca como lido depois de processar (e só
-// olha e-mails NÃO lidos a cada execução), pra não reprocessar o mesmo
-// pedido, sem apagar nada da caixa de forma automática/não supervisionada.
-// Os e-mails de pedido vão se acumular (lidos) na caixa até alguém limpar
-// manualmente de vez em quando.
-//
-// RISCO ACEITO (decisão consciente, não é bug): como essa é a MESMA caixa
-// que o coletor de e-mail nativo do GLPI usa pra abrir chamados, existe uma
-// chance pequena do GLPI processar o e-mail-gatilho antes deste script e
-// abrir um chamado indevido com ele (esse chamado precisaria ser apagado
-// manualmente se acontecer). Pra minimizar, agende este script pra rodar
-// com MAIS frequência que o coletor de e-mail do GLPI (que roda a cada 5
-// minutos) - ver LEIA-ME.txt.
+// COMO FUNCIONA: NÃO lê a caixa de e-mail diretamente (tentamos isso
+// primeiro com a extensão imap do PHP, mas essa versão do GLPI usa uma
+// biblioteca PHP pura pra e-mail, incompatível com as funções imap_*
+// nativas, e o pacote do sistema pra isso nem tinha candidato de
+// instalação). Em vez disso, deixa o PRÓPRIO coletor de e-mail nativo do
+// GLPI (já testado, já funciona) transformar o e-mail-gatilho num chamado
+// normal, e este script roda em polling (via cron, mesmo padrão do
+// notificar_ocorrencia.php) procurando chamados novos, em QUALQUER
+// entidade, com esse assunto. Ao achar um chamado autorizado: gera e manda
+// o relatório pro requerente, depois fecha o chamado com um comentário.
+// Chamados de remetente não autorizado ficam abertos, sem resposta
+// automática, pra alguém da TI olhar manualmente.
 //
 // Uso: php verificar_solicitacao_relatorio.php
 
@@ -34,86 +29,113 @@ use Glpi\Kernel\Kernel;
 $kernel = new Kernel();
 $kernel->boot();
 
-const MAILCOLLECTOR_ID = 1;
 const PALAVRA_CHAVE = 'RELATORIO OCORRENCIAS';
 const PASTA_SCRIPT = __DIR__;
+const ARQUIVO_ESTADO = PASTA_SCRIPT . '/ultimo_id_solicitacao.txt';
 
 $remetentesAutorizados = [
     'marya.souza@tquim.com.br',
 ];
 
-$collector = new MailCollector();
-if (!$collector->getFromDB(MAILCOLLECTOR_ID)) {
-    fwrite(STDERR, "MailCollector id " . MAILCOLLECTOR_ID . " não encontrado.\n");
-    exit(1);
+global $DB;
+
+$ultimoId = 0;
+if (is_file(ARQUIVO_ESTADO)) {
+    $ultimoId = (int) trim(file_get_contents(ARQUIVO_ESTADO));
 }
 
-$conexao = $collector->connect();
-if (!$conexao) {
-    fwrite(STDERR, "Não foi possível conectar na caixa de e-mail: " . imap_last_error() . "\n");
-    exit(1);
-}
+$criterios = [
+    'SELECT' => ['id', 'name'],
+    'FROM' => 'glpi_tickets',
+    'WHERE' => [
+        'is_deleted' => 0,
+        'id' => ['>', $ultimoId],
+        'name' => ['LIKE', '%' . PALAVRA_CHAVE . '%'],
+    ],
+    'ORDER' => 'id ASC',
+];
 
-// Só e-mails ainda não lidos - evita reprocessar o mesmo pedido de novo.
-$mensagens = imap_search($conexao, 'UNSEEN');
+$maiorId = $ultimoId;
 $processados = 0;
 
-if ($mensagens !== false) {
-    foreach ($mensagens as $numero) {
-        $header = imap_headerinfo($conexao, $numero);
-        if (!$header) {
-            continue;
-        }
-        $assunto = isset($header->subject) ? imap_utf8($header->subject) : '';
-        if (stripos($assunto, PALAVRA_CHAVE) === false) {
-            continue; // não é um pedido de relatório - deixa não lido, sem mexer
-        }
+foreach ($DB->request($criterios) as $row) {
+    $ticketId = (int) $row['id'];
+    $maiorId = max($maiorId, $ticketId);
 
-        $remetente = strtolower(trim(($header->from[0]->mailbox ?? '') . '@' . ($header->from[0]->host ?? '')));
-        $autorizado = in_array($remetente, array_map('strtolower', $remetentesAutorizados), true);
+    $ticket = new Ticket();
+    if (!$ticket->getFromDB($ticketId)) {
+        continue;
+    }
 
-        echo "E-mail encontrado: assunto='$assunto' de='$remetente' autorizado=" . ($autorizado ? 'sim' : 'não') . "\n";
-
-        if ($autorizado) {
-            $ano = date('Y');
-            $arquivo = PASTA_SCRIPT . "/Relatorio_Ocorrencias_{$ano}_sob_demanda.xlsx";
-
-            $comando = 'cd ' . escapeshellarg(PASTA_SCRIPT)
-                . ' && /usr/bin/python3 exportar_relatorio_ocorrencias.py '
-                . escapeshellarg($arquivo) . ' ' . escapeshellarg((string) $ano) . ' 2>&1';
-            exec($comando, $saidaComando, $codigoRetorno);
-            echo implode("\n", $saidaComando) . "\n";
-
-            if ($codigoRetorno === 0 && is_file($arquivo)) {
-                $config = Config::getConfigurationValues('core', ['admin_email', 'admin_email_name']);
-                $mailer = new GLPIMailer();
-                $mailer->setFrom($config['admin_email'], $config['admin_email_name'] ?? '');
-                $mailer->addAddress($remetente);
-                $mailer->isHTML(true);
-                $email = $mailer->getEmail();
-                $email->subject('Relatório de Ocorrências - solicitado por e-mail');
-                $email->html(
-                    '<p>Segue o relatório de Ocorrências de ' . $ano . ' solicitado por e-mail.</p>'
-                    . '<p><em>Gerado automaticamente em resposta ao seu pedido.</em></p>'
-                );
-                $email->attachFromPath($arquivo, basename($arquivo));
-                if ($mailer->send()) {
-                    echo "Relatório enviado para $remetente.\n";
-                } else {
-                    fwrite(STDERR, "Erro ao enviar: " . $mailer->getError() . "\n");
+    $emailRequerente = '';
+    $requerentes = $ticket->getUsers(CommonITILActor::REQUESTER);
+    foreach ($requerentes as $r) {
+        $userId = (int) ($r['users_id'] ?? 0);
+        if ($userId > 0) {
+            $user = new User();
+            if ($user->getFromDB($userId)) {
+                $email = $user->getDefaultEmail();
+                if ($email) {
+                    $emailRequerente = strtolower($email);
+                    break;
                 }
-            } else {
-                fwrite(STDERR, "Erro ao gerar o relatório (código $codigoRetorno).\n");
             }
         }
-
-        // Marca como lido (não apaga nada) - não é processado de novo na
-        // próxima execução, mesmo que não fosse de um remetente autorizado.
-        imap_setflag_full($conexao, (string) $numero, '\\Seen');
-        $processados++;
     }
+
+    $autorizado = $emailRequerente !== '' && in_array($emailRequerente, array_map('strtolower', $remetentesAutorizados), true);
+    echo "Chamado {$ticketId}: requerente='{$emailRequerente}' autorizado=" . ($autorizado ? 'sim' : 'não') . "\n";
+
+    if ($autorizado) {
+        $ano = date('Y');
+        $arquivo = PASTA_SCRIPT . "/Relatorio_Ocorrencias_{$ano}_sob_demanda.xlsx";
+
+        $comando = 'cd ' . escapeshellarg(PASTA_SCRIPT)
+            . ' && /usr/bin/python3 exportar_relatorio_ocorrencias.py '
+            . escapeshellarg($arquivo) . ' ' . escapeshellarg((string) $ano) . ' 2>&1';
+        exec($comando, $saidaComando, $codigoRetorno);
+        echo implode("\n", $saidaComando) . "\n";
+
+        $comentario = '';
+        if ($codigoRetorno === 0 && is_file($arquivo)) {
+            $config = Config::getConfigurationValues('core', ['admin_email', 'admin_email_name']);
+            $mailer = new GLPIMailer();
+            $mailer->setFrom($config['admin_email'], $config['admin_email_name'] ?? '');
+            $mailer->addAddress($emailRequerente);
+            $mailer->isHTML(true);
+            $email = $mailer->getEmail();
+            $email->subject('Relatório de Ocorrências - solicitado por e-mail');
+            $email->html(
+                '<p>Segue o relatório de Ocorrências de ' . $ano . ' solicitado por e-mail.</p>'
+                . '<p><em>Gerado automaticamente em resposta ao seu pedido.</em></p>'
+            );
+            $email->attachFromPath($arquivo, basename($arquivo));
+            if ($mailer->send()) {
+                echo "Relatório enviado para {$emailRequerente}.\n";
+                $comentario = 'Relatório de Ocorrências gerado e enviado automaticamente para ' . $emailRequerente . '.';
+            } else {
+                fwrite(STDERR, "Erro ao enviar: " . $mailer->getError() . "\n");
+                $comentario = 'Falha ao enviar o relatório: ' . $mailer->getError();
+            }
+        } else {
+            fwrite(STDERR, "Erro ao gerar o relatório (código {$codigoRetorno}).\n");
+            $comentario = 'Falha ao gerar o relatório (código ' . $codigoRetorno . ').';
+        }
+
+        // Fecha o chamado-gatilho automaticamente, com um comentário interno
+        // explicando o que aconteceu.
+        $followup = new ITILFollowup();
+        $followup->add([
+            'itemtype' => 'Ticket',
+            'items_id' => $ticketId,
+            'content' => $comentario,
+            '_disablenotifications' => true,
+        ]);
+        $ticket->update(['id' => $ticketId, 'status' => 6, '_disablenotifications' => true]);
+    }
+
+    $processados++;
 }
 
-imap_close($conexao);
-
-echo "Concluído. $processados e-mail(s) de solicitação processado(s).\n";
+file_put_contents(ARQUIVO_ESTADO, (string) $maiorId);
+echo "Concluído. {$processados} pedido(s) de relatório processado(s). Último ID: {$maiorId}.\n";

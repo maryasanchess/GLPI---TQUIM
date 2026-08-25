@@ -43,14 +43,16 @@ O QUE FAZ
   Ocorrências por e-mail, fora do dia agendado do mês. Manda um e-mail pra
   chamados.ti@tquim.com.br com "RELATORIO OCORRENCIAS" no assunto, de um
   endereço autorizado, e o relatório do ano corrente volta por e-mail pra
-  quem pediu. Roda em polling (via cron) na MESMA caixa que o coletor de
-  e-mail nativo do GLPI usa pra abrir chamados - reaproveita a credencial já
-  cadastrada no GLPI (MailCollector id 1), sem guardar senha de e-mail em
-  lugar nenhum. Não apaga nada da caixa: só marca o e-mail como lido depois
-  de processar. RISCO ACEITO: por ser a mesma caixa do coletor nativo,
-  existe uma chance pequena do GLPI abrir um chamado indevido com o
-  e-mail-gatilho antes deste script processar - decisão consciente da
-  TQUIM, ver comentário no topo do script.
+  quem pediu. NÃO lê a caixa de e-mail diretamente (tentamos com a extensão
+  imap do PHP, mas essa versão do GLPI usa uma biblioteca PHP pura pra
+  e-mail, incompatível, e o pacote do sistema nem tinha candidato de
+  instalação). Em vez disso, deixa o PRÓPRIO coletor de e-mail nativo do
+  GLPI (já testado, já funciona) transformar o e-mail-gatilho num chamado
+  normal, e roda em polling (via cron, mesmo padrão do
+  notificar_ocorrencia.php) procurando chamados novos com esse assunto, em
+  qualquer entidade. Ao achar um chamado de remetente autorizado: gera e
+  manda o relatório, depois fecha o chamado com um comentário. De remetente
+  não autorizado: fica aberto, sem resposta automática, pra alguém olhar.
 
 ANTES DE USAR (exportar_relatorio_ocorrencias.py)
 1. Copie config_exemplo.json para config.json e preencha api_url, app_token
@@ -124,25 +126,23 @@ ANTES DE USAR (verificar_solicitacao_relatorio.php)
 1. Ajuste os caminhos dos require_once no topo do script para onde o GLPI
    está instalado no seu servidor (raiz do GLPI).
 2. Ajuste a lista $remetentesAutorizados com os e-mails que podem pedir o
-   relatório por e-mail. Só quem estiver nessa lista recebe resposta -
-   e-mails de outros remetentes com a palavra-chave certa são marcados como
-   lidos e ignorados, sem gerar nada.
+   relatório por e-mail (precisa ser o e-mail de um usuário já cadastrado no
+   GLPI, já que o requerente do chamado é resolvido por lá).
 3. Deve ser executado como o usuário do servidor web (mesma observação do
    notificar_ocorrencia.php).
-4. A extensão PHP imap precisa estar habilitada (é a mesma que o próprio
-   GLPI usa pro coletor de e-mail nativo, então já deve estar).
+4. Na primeira execução, pra não processar retroativamente algum chamado
+   antigo que por acaso tenha esse texto no título, inicialize o arquivo de
+   estado com o maior ID de chamado já existente (em qualquer entidade):
+     echo "<maior id atual>" > ultimo_id_solicitacao.txt
 
 COMO USAR (manual, pra testar)
     sudo -u www-data php verificar_solicitacao_relatorio.php
 
 AGENDADO: mesma observação do notificar_ocorrencia.php - coloque no crontab
-do PRÓPRIO www-data, não chame com "sudo -u www-data" de outro usuário.
-Agende com um intervalo MENOR que o coletor de e-mail nativo do GLPI (que
-roda a cada 5 minutos), pra tentar chegar primeiro na maioria das vezes -
-ex., a cada 2 minutos:
-    */2 * * * * cd /caminho/para/relatorio_ocorrencias && php verificar_solicitacao_relatorio.php >> solicitacao_relatorio.log 2>&1
-(mesma pegadinha de permissão do notificacao.log: garanta que
-solicitacao_relatorio.log seja do dono www-data antes de agendar.)
+do PRÓPRIO www-data, não chame com "sudo -u www-data" de outro usuário e
+garanta que solicitacao_relatorio.log e ultimo_id_solicitacao.txt sejam do
+dono www-data antes de agendar:
+    */5 * * * * cd /caminho/para/relatorio_ocorrencias && php verificar_solicitacao_relatorio.php >> solicitacao_relatorio.log 2>&1
 
 ANTES DE USAR (criar_dashboard_ocorrencias.php)
 Ajuste $dashboardKey e o nome do dashboard no topo do script, se quiser.
