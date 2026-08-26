@@ -102,7 +102,12 @@ COLUNAS_PLUGIN = [
     ("Levantamento de Custos (descritivo)", campo("levantamentodecustofield")),
     ("Custo Total", campo("custototalfield")),
     ("S.A.", campo("safield")),
-    ("Inserir na avaliação motorista?", campo_fmt("inserirnaavaliaomotoristafield", _yesno)),
+    # "Inserir na avaliação motorista?" não vem daqui: o campo antigo
+    # (container 1) foi desativado e substituído por um novo, dentro do
+    # bloco "Classificação" (container 6) - ver getters_extra em
+    # montar_linhas(). Mesma razão do Código Qualidade: mover um campo
+    # existente de container quebra a busca; um campo novo, criado direto
+    # no container certo, não tem esse problema.
 ]
 
 COLUNAS_LARGURA = {
@@ -188,7 +193,7 @@ def montar_linhas(sreq, ano):
         dados1 = dados_container1.get(tid, {})
         dados6 = dados_container6.get(tid, {})
 
-        avaliacao = _as_int(dados1.get("inserirnaavaliaomotoristafield"))
+        avaliacao = _as_int(dados6.get("avaliacaomotoristafield"))
         if avaliacao != 1:
             continue
 
@@ -209,6 +214,7 @@ def montar_linhas(sreq, ano):
             "Tipo": row.get(str(CAMPO_TIPO)) or "",
             "Data": row.get(str(CAMPO_DATA)) or "",
             "Código Qualidade (Quadro 1)": codigo_qualidade,
+            "Inserir na avaliação motorista?": _yesno(avaliacao),
         }
         for label, getter in COLUNAS_PLUGIN:
             if getter is not None:
@@ -220,7 +226,8 @@ def montar_linhas(sreq, ano):
 
 
 def cabecalhos():
-    return (["ID", "Tipo", "Data"] + [label for label, _ in COLUNAS_PLUGIN] + ["Código Qualidade (Quadro 1)"])
+    return (["ID", "Tipo", "Data"] + [label for label, _ in COLUNAS_PLUGIN]
+            + ["Código Qualidade (Quadro 1)", "Inserir na avaliação motorista?"])
 
 
 def escrever_aba_listagem(ws, linhas):

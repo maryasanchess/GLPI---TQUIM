@@ -132,8 +132,23 @@ ANTES DE USAR (verificar_solicitacao_relatorio.php)
    notificar_ocorrencia.php).
 4. Na primeira execução, pra não processar retroativamente algum chamado
    antigo que por acaso tenha esse texto no título, inicialize o arquivo de
-   estado com o maior ID de chamado já existente (em qualquer entidade):
-     echo "<maior id atual>" > ultimo_id_solicitacao.txt
+   estado com o maior ID de chamado já existente (em qualquer entidade), já
+   com o dono certo:
+     echo "<maior id atual>" | sudo tee ultimo_id_solicitacao.txt
+     sudo chown www-data:www-data ultimo_id_solicitacao.txt
+5. Este script chama o exportar_relatorio_ocorrencias.py por baixo, só que
+   rodando como www-data (não como o usuário comum que só roda o mensal
+   agendado) - por isso precisa de mais 3 ajustes de permissão que só esse
+   caminho de execução precisa:
+     a) instalar o openpyxl pro Python que o www-data usa (instalar só pro
+        seu próprio usuário, com --user, não é visível pro www-data):
+          sudo /usr/bin/python3 -m pip install --break-system-packages openpyxl
+     b) o www-data precisa conseguir LER o config.json (que por padrão é
+        600, só o dono lê):
+          sudo chgrp www-data config.json && sudo chmod 640 config.json
+     c) o www-data precisa conseguir ESCREVER na pasta (pra salvar o .xlsx
+        gerado na hora):
+          sudo chgrp www-data . && sudo chmod g+w .
 
 COMO USAR (manual, pra testar)
     sudo -u www-data php verificar_solicitacao_relatorio.php
