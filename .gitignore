@@ -3,3 +3,16 @@ config.json
 *.csv
 __pycache__/
 *.pyc
+
+# Dados operacionais do importador (contem dados reais de chamados/usuarios)
+importacao_glpi_estado.json
+logs/
+resultados/
+backups/
+anexos_forms/
+anexos_temporarios/
+dados_categorias/
+_*.txt
+_*.json
+*.sql
+.venv*/

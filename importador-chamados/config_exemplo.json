@@ -1,0 +1,21 @@
+{
+  "api_url": "https://SEU-SERVIDOR-GLPI/api.php/v1",
+  "app_token": "token do cliente de API (Configurar > Geral > API)",
+  "user_token": "token pessoal do usuário (Preferências > Chaves de API remota)",
+  "profile_id": 0,
+  "interval_seconds": 0.15,
+  "scan_existing_tickets": true,
+  "processar_nao_finalizados": true,
+  "duplicate_scan_range": 30000,
+  "duplicate_scan_page_size": 500,
+  "local_attachment_dir": "anexos_forms",
+  "auto_create_categories": false,
+  "technician_map": {
+    "Nome do tecnico como aparece na planilha": 0
+  },
+  "requester_user_map": {
+    "Nome ou e-mail do requerente na planilha": 0
+  },
+  "category_map": {},
+  "department_group_map": {}
+}

@@ -1,0 +1,96 @@
+IMPORTADOR GERAL SIMPLIFICADO DO GLPI
+=====================================
+
+USO NO DIA A DIA (RECOMENDADO)
+1. Extraia o ZIP para uma pasta no Windows.
+2. Abra a pasta extraída.
+3. Dê dois cliques em EXECUTAR_IMPORTADOR_GERAL.bat.
+4. Escolha a opção 16. Ela sozinha: valida tudo (arquivos, config, planilha,
+   controle e a API de verdade), importa só os chamados que ainda não
+   existem no GLPI (nunca duplica), completa setor/TI/requerente, aplica
+   categorias e, no final, confere no GLPI se cada chamado novo ficou com
+   requerente, data, status, técnico e grupo corretos.
+5. Se a opção 16 travar com "BLOQUEADO", o próprio relatório impresso na
+   tela (e salvo em resultados/) diz exatamente o que corrigir - normalmente
+   um valor no config.json (technician_map, requester_user_map,
+   category_map ou department_group_map) ou um token/API inválido. Corrija
+   e rode a opção 16 de novo; não precisa escolher outra opção do menu.
+
+COMO ABRIR (passo a passo detalhado, se quiser ir com calma)
+1. Extraia o ZIP para uma pasta no Windows.
+2. Abra a pasta extraída.
+3. Dê dois cliques em EXECUTAR_IMPORTADOR_GERAL.bat.
+4. Use primeiro a opção 13 para validar os arquivos sem conectar ao GLPI.
+5. Use a opção 14 para testar a planilha, o controle, a API e as permissões.
+6. Se a API ou o controle mudarem, use a opção 1.
+7. Antes de importar, use a opção 2 para simular.
+8. Para uma primeira conferência, use a opção 3 e importe somente 1 chamado.
+9. Depois de importar (opção 4, 5 ou 16), use a opção 15 para conferir no
+   GLPI de verdade se cada chamado ficou com o requerente, a data, o
+   status, o técnico e o grupo/setor corretos (a opção 16 já faz isso
+   sozinha no final).
+
+COMO TROCAR A PLANILHA NO FUTURO
+- Exporte novamente a planilha completa, incluindo as linhas antigas e novas.
+- Não ordene, exclua ou mova as linhas antigas: a referência EXCEL-N depende da
+  posição original da linha na planilha.
+- Não insira títulos antes do cabeçalho.
+- Não mude a posição das duas colunas de anexos; elas devem continuar nas
+  colunas L e N.
+- Feche o Excel e substitua o arquivo planilha_atualizada.xlsx pelo novo.
+- Preserve planilha_anterior.xlsx enquanto precisar sincronizar alterações.
+- Depois da troca, execute as opções 13, 14 e 2, nesta ordem.
+
+O QUE O FLUXO GERAL FAZ
+- Evita importar novamente referências EXCEL-N já registradas.
+- Importa data de abertura, prioridade, técnico, categoria e status.
+- Insere anexos antes da solução.
+- Insere solução e sincroniza o status.
+- Atribui o departamento como grupo requerente.
+- Atribui TI como grupo responsável.
+- Adiciona o solicitante como usuário requerente sem notificação.
+- Mantém um arquivo de estado com a relação EXCEL-N -> chamado GLPI.
+
+SEGURANÇA
+- Opções que alteram o GLPI exigem digitar exatamente APLICAR.
+- Antes de qualquer alteração, o importador valida a planilha e a API e cria
+  automaticamente uma cópia do controle na pasta backups.
+- A consulta antirrepetição confere o arquivo de estado e também procura as
+  referências EXCEL-N já existentes diretamente no GLPI.
+- Se o mesmo chamado estiver ligado a referências diferentes, ou se as colunas
+  de anexos forem deslocadas, a importação será bloqueada.
+- A simulação não modifica o GLPI.
+- A correção de datas NUNCA é aplicada pelo menu: ela somente consulta, compara
+  e gera uma planilha de conferência e dois SQLs.
+- Execute primeiro SQL_1_TESTE_ROLLBACK no banco. Ele termina em ROLLBACK.
+- Só depois de revisar o resultado use SQL_2_APLICAR_COMMIT. Ele cria uma
+  tabela de backup antes de atualizar as datas.
+- Faça também um backup normal do banco antes de qualquer correção em massa.
+
+ARQUIVOS PRINCIPAIS
+- planilha_atualizada.xlsx: base atual dos chamados.
+- planilha_anterior.xlsx: base anterior usada em reparos e comparações.
+- config.json: endereço e tokens da API. Não compartilhe esse arquivo.
+- importacao_glpi_estado.json: controle contra duplicações.
+- dados_categorias/chamados_sem_categoria.xlsx: entrada da correção de categorias.
+- anexos_forms: coloque aqui anexos locais, quando necessário.
+- resultados: relatórios gerados durante o uso.
+- backups: cópias automáticas do controle antes das alterações.
+- logs: histórico de cada execução, útil para identificar onde ocorreu um erro.
+
+REGRAS DAS DATAS
+- Corrige somente campos que estejam diferentes entre a planilha e o GLPI.
+- Usa a data escrita quando ela é válida.
+- Se a data estiver ausente ou inválida, usa a abertura como base e atribui uma
+  data posterior conforme a regra do módulo, com horário determinístico entre
+  08:00 e 17:00.
+- A data de criação também acompanha a abertura quando estiver divergente.
+
+OBSERVAÇÕES
+- Execute este pacote em um computador com acesso à rede do GLPI.
+- O primeiro uso instala pandas e openpyxl no ambiente local do pacote.
+- Não apague o arquivo de estado depois de começar uma importação.
+- Consulte o último relatório verificacao_pre_importacao na pasta resultados
+  quando o programa apresentar um bloqueio ou aviso.
+- Os módulos técnicos permanecem na pasta modulos, mas o uso normal deve ser
+  feito somente pelo EXECUTAR_IMPORTADOR_GERAL.bat.

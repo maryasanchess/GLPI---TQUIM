@@ -1,0 +1,27 @@
+Importador GLPI Geral Simplificado
+Versão: 2.0 segura
+Data: 03/08/2026
+
+Melhorias desta versão:
+- verificação completa da planilha e das posições de anexos;
+- validação do controle contra duplicações e conflitos de IDs;
+- teste de API e permissões somente em leitura;
+- backup automático do arquivo de estado;
+- consulta antirrepetição também diretamente no GLPI;
+- logs separados para cada execução;
+- instalação de dependências somente quando necessário.
+
+Atualização (17/08/2026):
+- modulos/importar_chamados.py e modulos/verificar_pre_importacao.py foram
+  completados (estavam ausentes da pasta modulos).
+- verificar_pre_importacao.py agora valida, em sequência, antes de qualquer
+  gravação no GLPI: arquivos do pacote, config.json (URL, tokens, mapas),
+  o controle de duplicidade (inclusive ticket_id vinculado a mais de uma
+  referência EXCEL-N), a planilha (colunas obrigatórias, linhas válidas,
+  datas, posição das colunas de anexos L/N), comparação com a planilha
+  anterior, cobertura dos mapas de técnico/requerente e, com --api, testes
+  de leitura reais no GLPI (login, permissão de leitura, existência dos
+  IDs de técnico/requerente/categoria configurados).
+- corrigido erro real encontrado no config.json: api_url estava com o
+  prefixo "URL: " colado no endereço, o que teria bloqueado toda e
+  qualquer ação (a verificação agora barra isso automaticamente).
