@@ -6,6 +6,7 @@ __pycache__/
 
 # Dados operacionais do importador (contem dados reais de chamados/usuarios)
 importacao_glpi_estado.json
+estado_validacao_qualidade.json
 logs/
 resultados/
 backups/
