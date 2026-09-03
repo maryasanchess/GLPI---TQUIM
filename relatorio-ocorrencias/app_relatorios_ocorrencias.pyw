@@ -107,8 +107,9 @@ class App(tk.Tk):
         ).pack(anchor="w")
         tk.Label(
             textos,
-            text="Anexe a planilha que a Qualidade devolveu preenchida — o sistema confere cada "
-                 "linha e já atualiza no GLPI o que precisar mudar.",
+            text="Pode ser a planilha inteira ou só o recorte que um setor devolveu. Cada linha "
+                 "é conferida por ID + Data contra o GLPI antes de mudar qualquer coisa — se não "
+                 "bater, é pulada e avisada. Chamado já processado antes não é mexido de novo.",
             font=("Segoe UI", 8), bg="#ffffff", fg="#666", wraplength=360, justify="left",
         ).pack(anchor="w")
 
